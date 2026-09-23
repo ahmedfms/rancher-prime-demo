@@ -13,11 +13,17 @@ metadata:
 data:
   index.html: |
     <!doctype html>
-    <html><head><title>Retail Storefront</title></head>
-    <body style="font-family:sans-serif;background:#0c322c;color:white;text-align:center;padding:70px">
-      <h1>Retail Storefront v1</h1>
-      <p>Delivered and governed through Rancher Prime + Fleet</p>
-    </body></html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Retail Demo</title>
+    </head>
+    <body>
+      <h1>Retail demo is running</h1>
+      <p>Delivered and governed through Rancher Prime + Fleet.</p>
+    </body>
+    </html>
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -37,33 +43,42 @@ spec:
         app: storefront
     spec:
       containers:
-      - name: web
-        image: registry.suse.com/bci/bci-busybox:15.7
-        command: ["/bin/sh","-c"]
-        args: ["httpd -f -p 8080 -h /www"]
-        ports:
-        - name: http
-          containerPort: 8080
-        volumeMounts:
-        - name: content
-          mountPath: /www
-        readinessProbe:
-          httpGet:
-            path: /
-            port: http
-          initialDelaySeconds: 2
-          periodSeconds: 5
-        resources:
-          requests:
-            cpu: 10m
-            memory: 16Mi
-          limits:
-            cpu: 100m
-            memory: 64Mi
+        - name: web
+          image: nginx:1.27-alpine
+          ports:
+            - name: http
+              containerPort: 80
+          volumeMounts:
+            - name: content
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
       volumes:
-      - name: content
-        configMap:
-          name: storefront-content
+        - name: content
+          configMap:
+            name: storefront-content
 ---
 apiVersion: v1
 kind: Service
@@ -74,6 +89,7 @@ spec:
   selector:
     app: storefront
   ports:
-  - name: http
-    port: 80
-    targetPort: http
+    - name: http
+      port: 80
+      targetPort: http
+  type: ClusterIP
